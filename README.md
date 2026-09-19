@@ -1,5 +1,5 @@
 # 🍕 JWT Pizza
-Testing deployment with GitHub actions
+Testing deployment with GitHub actions take 2
 [![CI Pipeline](https://github.com/trobarg/jwt-pizza/actions/workflows/ci.yml/badge.svg)](https://github.com/trobarg/jwt-pizza/actions/workflows/ci.yml)
 ![Coverage badge](https://pizza-factory.cs329.click/api/badge/accountId/jwtpizzacoverage?t=1)
 
