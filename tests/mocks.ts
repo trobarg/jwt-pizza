@@ -1,6 +1,6 @@
 import { Page, Request, Route } from '@playwright/test';
 import { Endpoints, Franchise, Menu, Order, Role, User } from '../src/service/pizzaService';
-import { factoryUrl, serviceUrl } from './testSetup';
+import { expect, factoryUrl, serviceUrl } from './testSetup';
 
 // Credentials tests log in with. basicInit clones these, so tests can't leak state into each other.
 export const testUsers: Record<'diner' | 'franchisee' | 'admin', User> = {
@@ -39,7 +39,7 @@ function seedFranchises(): Franchise[] {
   ];
 }
 
-const testDocs: Endpoints = {
+export const testDocs: Endpoints = {
   endpoints: [
     {
       requiresAuth: false,
@@ -76,6 +76,8 @@ export async function basicInit(page: Page) {
     } as Record<string, Order[]>,
     issuedJwts: [] as string[],
     loggedInUser: undefined as User | undefined,
+    // Set to make POST /api/order fail the way the real service does when the factory rejects an order.
+    factoryRejectsOrders: false,
   };
   const token = 'abcdef';
   let nextId = 100;
@@ -148,6 +150,7 @@ export async function basicInit(page: Page) {
       }
       case 'POST': {
         if (!user) return unauthorized(route);
+        if (state.factoryRejectsOrders) return route.fulfill({ status: 500, json: { message: 'Failed to fulfill order at factory' } });
         // The real service echoes the request plus an id; the date only shows up in order history.
         const order = { ...request.postDataJSON(), id: newId() };
         const jwt = `eyJpYXQ.mock-order.${order.id}`;
@@ -262,6 +265,15 @@ export async function basicInit(page: Page) {
   });
 
   return state;
+}
+
+// Logs in through the UI and waits until the header reflects it.
+export async function login(page: Page, user: User) {
+  await page.goto('/login');
+  await page.getByRole('textbox', { name: 'Email address' }).fill(user.email!);
+  await page.getByRole('textbox', { name: 'Password' }).fill(user.password!);
+  await page.getByRole('button', { name: 'Login' }).click();
+  await expect(page.getByRole('navigation', { name: 'Global' }).getByRole('link', { name: 'Logout' })).toBeVisible();
 }
 
 function api(origin: string, path: string | RegExp) {
