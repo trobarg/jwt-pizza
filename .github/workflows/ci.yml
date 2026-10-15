@@ -28,9 +28,7 @@ jobs:
           printf '{"version": "%s" }' "$version" > public/version.json
 
       - name: Build
-        run: |
-          npm ci && npm run build
-          cp dist/index.html dist/404.html
+        run: npm ci && npm run build
 
       - name: Run tests
         run: |
@@ -43,8 +41,8 @@ jobs:
           color=$(echo "$coverage < 80" | bc | awk '{if ($1) print "red"; else print "green"}')
           curl -s -X POST "https://pizza-factory.cs329.click/api/badge/${{ secrets.NET_ID }}/jwtpizzacoverage?label=Coverage&value=$coverage%25&color=$color" -H "authorization: bearer ${{ secrets.FACTORY_API_KEY }}"
 
-      - name: Update distribution artifact
-        uses: actions/upload-artifact@v4
+      - name: Update dist artifact
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: package
           path: dist/
