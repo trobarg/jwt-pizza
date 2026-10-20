@@ -135,6 +135,23 @@ export async function basicInit(page: Page) {
     return route.fulfill({ json: withoutPassword(user) });
   });
 
+  // PUT /api/user/:userId — users may update themselves; admins may update anyone.
+  await page.route(api(serviceUrl, /^\/api\/user\/[^/]+$/), async (route) => {
+    const request = route.request();
+    if (request.method() !== 'PUT') return route.fallback();
+    const user = authUser(request);
+    if (!user) return unauthorized(route);
+    const id = new URL(request.url()).pathname.split('/').pop()!;
+    if (user.id !== id && !isAdmin(user)) return forbidden(route, 'unauthorized');
+    const target = state.users.find((u) => u.id === id);
+    if (!target) return route.fulfill({ status: 404, json: { message: 'unknown user' } });
+    // Update in place so state.users and state.loggedInUser stay the same object.
+    // The frontend omits password when it's left blank, so the old one is kept.
+    const { name, email, password } = request.postDataJSON();
+    Object.assign(target, { name, email, ...(password && { password }) });
+    return route.fulfill({ json: { user: withoutPassword(target), token } });
+  });
+
   await page.route(api(serviceUrl, '/api/order/menu'), async (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     return route.fulfill({ json: testMenu });

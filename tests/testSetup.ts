@@ -7,7 +7,7 @@ export const factoryUrl = 'https://pizza-factory.cs329.click';
 const backendOrigins = [serviceUrl, factoryUrl];
 
 // Any backend request that a page-level mock doesn't fulfill should fall through to this
-// context-level route, get aborted, and fails. Page route should take precedence
+// context-level route, get aborted, and fail. Page route should take precedence
 // over context routes, so that mocks registered with page.route() win.
 export const test = coverageTest.extend({
   context: async ({ context }, use) => {

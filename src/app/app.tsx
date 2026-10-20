@@ -63,15 +63,9 @@ export default function App() {
 
   const navItems = [
     { title: 'Home', to: '/', component: <Home />, display: [] },
-    { title: 'Diner', to: '/diner-dashboard', component: <DinerDashboard user={user} />, display: [] },
+    { title: 'Diner', to: '/diner-dashboard', component: <DinerDashboard user={user} setUser={setUser} />, display: [] },
     { title: 'Order', to: '/menu', component: <Menu />, display: ['nav'] },
-    {
-      title: 'Franchise',
-      to: '/franchise-dashboard',
-      component: <FranchiseDashboard user={user} />,
-      constraints: [isNotAdmin],
-      display: ['nav', 'footer'],
-    },
+    { title: 'Franchise', to: '/franchise-dashboard', component: <FranchiseDashboard user={user} />, constraints: [isNotAdmin], display: ['nav', 'footer'] },
     { title: 'About', to: '/about', component: <About />, display: ['footer'] },
     { title: 'History', to: '/history', component: <History />, display: ['footer'] },
     { title: 'Admin', to: '/admin-dashboard', component: <AdminDashboard user={user} />, constraints: [isAdmin], display: ['nav'] },
