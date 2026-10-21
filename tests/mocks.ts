@@ -135,21 +135,50 @@ export async function basicInit(page: Page) {
     return route.fulfill({ json: withoutPassword(user) });
   });
 
-  // PUT /api/user/:userId — users may update themselves; admins may update anyone.
-  await page.route(api(serviceUrl, /^\/api\/user\/[^/]+$/), async (route) => {
+  // GET /api/user?page=&limit=&name= — admins only. Sorted by id like the real service.
+  await page.route(api(serviceUrl, '/api/user'), async (route) => {
     const request = route.request();
-    if (request.method() !== 'PUT') return route.fallback();
+    if (request.method() !== 'GET') return route.fallback();
     const user = authUser(request);
     if (!user) return unauthorized(route);
+    if (!isAdmin(user)) return forbidden(route, 'unable to list users');
+    const params = new URL(request.url()).searchParams;
+    const pageNum = Number(params.get('page') ?? 0);
+    const limit = Number(params.get('limit') ?? 10);
+    const nameFilter = wildcardRegex(params.get('name') ?? '*');
+    const matches = state.users.filter((u) => nameFilter.test(u.name!)).sort((a, b) => Number(a.id) - Number(b.id));
+    const users = matches.slice(pageNum * limit, (pageNum + 1) * limit).map(withoutPassword);
+    return route.fulfill({ json: { users, more: matches.length > (pageNum + 1) * limit } });
+  });
+
+  // PUT /api/user/:userId — users may update themselves; admins may update anyone.
+  // DELETE /api/user/:userId — admins only; also ends the deleted user's session.
+  await page.route(api(serviceUrl, /^\/api\/user\/[^/]+$/), async (route) => {
+    const request = route.request();
+    const user = authUser(request);
     const id = new URL(request.url()).pathname.split('/').pop()!;
-    if (user.id !== id && !isAdmin(user)) return forbidden(route, 'unauthorized');
     const target = state.users.find((u) => u.id === id);
-    if (!target) return route.fulfill({ status: 404, json: { message: 'unknown user' } });
-    // Update in place so state.users and state.loggedInUser stay the same object.
-    // The frontend omits password when it's left blank, so the old one is kept.
-    const { name, email, password } = request.postDataJSON();
-    Object.assign(target, { name, email, ...(password && { password }) });
-    return route.fulfill({ json: { user: withoutPassword(target), token } });
+    switch (request.method()) {
+      case 'PUT': {
+        if (!user) return unauthorized(route);
+        if (user.id !== id && !isAdmin(user)) return forbidden(route, 'unauthorized');
+        if (!target) return route.fulfill({ status: 404, json: { message: 'unknown user' } });
+        // Update in place so state.users and state.loggedInUser stay the same object.
+        // The frontend omits password when it's left blank, so the old one is kept.
+        const { name, email, password } = request.postDataJSON();
+        Object.assign(target, { name, email, ...(password && { password }) });
+        return route.fulfill({ json: { user: withoutPassword(target), token } });
+      }
+      case 'DELETE': {
+        if (!user) return unauthorized(route);
+        if (!isAdmin(user)) return forbidden(route, 'unable to delete a user');
+        if (!target) return route.fulfill({ status: 404, json: { message: 'unknown user' } });
+        state.users = state.users.filter((u) => u !== target);
+        if (state.loggedInUser === target) state.loggedInUser = undefined;
+        return route.fulfill({ json: { message: 'user deleted' } });
+      }
+    }
+    return route.fallback();
   });
 
   await page.route(api(serviceUrl, '/api/order/menu'), async (route) => {
