@@ -1,8 +1,10 @@
 import { test as coverageTest, expect } from 'playwright-test-coverage';
+import { loadEnv } from 'vite';
 
-// Origins the frontend talks to in development mode
-export const serviceUrl = 'http://localhost:3000';
-export const factoryUrl = 'https://pizza-factory.cs329.click';
+// Origins the frontend talks to in development mode, read from the same .env.development the dev server uses
+const env = loadEnv('development', process.cwd(), 'VITE_');
+export const serviceUrl = new URL(env.VITE_PIZZA_SERVICE_URL).origin;
+export const factoryUrl = new URL(env.VITE_PIZZA_FACTORY_URL).origin;
 
 const backendOrigins = [serviceUrl, factoryUrl];
 
